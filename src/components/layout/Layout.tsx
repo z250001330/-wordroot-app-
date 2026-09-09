@@ -15,16 +15,20 @@ export default function Layout({ children }: { children: ReactNode }) {
     loadWordBook(currentUser)
   }, [currentUser])
 
-  // Auto-save progress on changes
-  const practiceCount = useProgressStore(s => s.practiceCount)
+  // Auto-save progress on key state changes
+  const xp = useProgressStore(s => s.xp)
+  const hearts = useProgressStore(s => s.hearts)
+  const gems = useProgressStore(s => s.gems)
   const unitStatuses = useProgressStore(s => s.unitStatuses)
-  const wordBookLen = useWordBookStore(s => s.entries.length)
+  const dailyCompletion = useProgressStore(s => s.dailyCompletion)
 
   useEffect(() => {
     if (!currentUser) return
     saveProgress(currentUser)
-  }, [currentUser, practiceCount, unitStatuses])
+  }, [currentUser, xp, hearts, gems, unitStatuses, dailyCompletion])
 
+  // Auto-save wordbook
+  const wordBookLen = useWordBookStore(s => s.entries.length)
   useEffect(() => {
     if (!currentUser) return
     saveWordBook(currentUser)
@@ -35,7 +39,7 @@ export default function Layout({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-gray-50 dark:bg-slate-900 flex flex-col transition-colors">
       <Navbar />
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6">
         {children}

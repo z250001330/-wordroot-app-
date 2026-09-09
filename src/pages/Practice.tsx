@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import { getUnitById, allUnits } from '../data/courseData'
 import { useProgressStore } from '../store/progressStore'
 import { useWordBookStore } from '../store/wordBookStore'
+import { speak } from '../utils/tts'
 import type { Word, PracticeType, PracticeQuestion } from '../types'
 
 // ====== 工具函数 ======
@@ -22,7 +23,6 @@ function pickDistractors<T>(pool: T[], count: number): T[] {
 // ====== 出题函数 ======
 function genDecomposeQuestions(words: Word[]): PracticeQuestion[] {
   return shuffle(words).map(w => {
-    // 从其他单元的单词中收集干扰项
     const allForms = allUnits
       .flatMap(u => u.words)
       .flatMap(w => w.parts.map(p => `${p.form}（${p.meaning}）`))
@@ -70,13 +70,11 @@ function genChoiceQuestions(words: Word[]): PracticeQuestion[] {
 }
 
 function genFillBlankQuestions(words: Word[]): PracticeQuestion[] {
-  // 从同一单元的单词中选干扰项
   return shuffle(words).map(w => {
     const blanks = w.exampleSentence.split(w.word)
     const blankedSentence = blanks.length > 1
       ? blanks.join('_____')
       : w.exampleSentence.replace(new RegExp(w.word, 'i'), '_____')
-    // 选项：当前单词 + 3个同单元干扰
     const distractors = pickDistractors(
       words.filter(x => x.word !== w.word).map(x => x.word),
       3
@@ -108,6 +106,9 @@ export default function Practice() {
   const { unitId } = useParams()
   const recordPractice = useProgressStore(s => s.recordPractice)
   const markUnitCompleted = useProgressStore(s => s.markUnitCompleted)
+  const loseHeart = useProgressStore(s => s.loseHeart)
+  const hearts = useProgressStore(s => s.hearts)
+  const addGems = useProgressStore(s => s.addGems)
   const addWord = useWordBookStore(s => s.addWord)
   const hasWord = useWordBookStore(s => s.hasWord)
 
@@ -131,18 +132,37 @@ export default function Practice() {
     )
   }
 
+  // 心数耗尽提示
+  if (hearts <= 0) {
+    return (
+      <div className="max-w-lg mx-auto py-20 text-center">
+        <div className="text-6xl mb-4">💔</div>
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">心数用完了</h2>
+        <p className="text-gray-500 dark:text-gray-400 mb-6">答错太多次，休息一下或恢复心数继续</p>
+        <div className="flex gap-3 justify-center">
+          <Link to={`/learn/${unit.id}`} className="px-6 py-2.5 bg-white dark:bg-slate-700 border-2 border-gray-200 dark:border-slate-600 text-gray-600 dark:text-gray-200 font-medium rounded-xl hover:border-gray-300 transition-colors">
+            返回学习
+          </Link>
+          <Link to="/progress" className="px-6 py-2.5 bg-primary text-white font-semibold rounded-xl hover:bg-primary-dark transition-colors">
+            去恢复心数
+          </Link>
+        </div>
+      </div>
+    )
+  }
+
   // ====== 选择练习类型 ======
   if (!selectedType) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center gap-2 text-sm text-gray-500">
-          <Link to={`/learn/${unit.id}`} className="hover:text-primary-dark">{unit.form}（{unit.meaning}）</Link>
+        <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+          <Link to={`/learn/${unit.id}`} className="hover:text-primary-dark">← 返回</Link>
           <span>/</span>
           <span>选择练习</span>
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">选择练习方式</h1>
-          <p className="text-sm text-gray-500 mt-1">{unit.form} · {unit.meaning} · {unit.words.length} 个单词</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">选择练习方式</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{unit.form} · {unit.meaning} · {unit.words.length} 个单词</p>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {practiceConfigs.map(cfg => (
@@ -163,11 +183,11 @@ export default function Practice() {
                 setSelectedAnswer(null)
                 setSpellingInput('')
               }}
-              className="bg-white rounded-2xl p-6 border-2 border-gray-100 hover:border-primary/30 hover:shadow-md transition-all text-left"
+              className="bg-white dark:bg-slate-800 rounded-2xl p-6 border-2 border-gray-100 dark:border-slate-700 hover:border-primary/30 hover:shadow-md transition-all text-left"
             >
               <div className="text-3xl mb-3">{cfg.icon}</div>
-              <h3 className="text-lg font-bold text-gray-900">{cfg.label}</h3>
-              <p className="text-sm text-gray-500 mt-1">{cfg.desc}</p>
+              <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">{cfg.label}</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{cfg.desc}</p>
             </button>
           ))}
         </div>
@@ -181,13 +201,14 @@ export default function Practice() {
   // ====== 结果页 ======
   if (showResult) {
     const accuracy = questions.length > 0 ? Math.round((correctCount / questions.length) * 100) : 0
+    const xpEarned = correctCount * 3 + (accuracy >= 80 ? 10 : 0)
     return (
       <div className="max-w-lg mx-auto py-10 text-center">
-        <div className="text-6xl mb-4">{accuracy >= 80 ? '🎉' : accuracy >= 60 ? '👍' : '💪'}</div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">练习完成！</h2>
-        <p className="text-gray-500 mb-6">{cfg.icon} {cfg.label}</p>
+        <div className="text-6xl mb-4 animate-celebrate">{accuracy >= 80 ? '🎉' : accuracy >= 60 ? '👍' : '💪'}</div>
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">练习完成！</h2>
+        <p className="text-gray-500 dark:text-gray-400 mb-6">{cfg.icon} {cfg.label}</p>
 
-        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm mb-6">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-gray-100 dark:border-slate-700 shadow-sm mb-6">
           <div className="grid grid-cols-3 gap-4">
             <div>
               <div className="text-3xl font-bold text-primary">{correctCount}</div>
@@ -198,18 +219,23 @@ export default function Practice() {
               <div className="text-xs text-gray-400 mt-1">错误</div>
             </div>
             <div>
-              <div className="text-3xl font-bold text-gray-700">{accuracy}%</div>
+              <div className="text-3xl font-bold text-gray-700 dark:text-gray-200">{accuracy}%</div>
               <div className="text-xs text-gray-400 mt-1">正确率</div>
             </div>
           </div>
+          {xpEarned > 0 && (
+            <div className="mt-4 pt-4 border-t border-gray-100 dark:border-slate-700 text-sm text-primary font-semibold">
+              +{xpEarned} XP {accuracy >= 80 && '+5 💎'}
+            </div>
+          )}
         </div>
 
         {wrongWords.length > 0 && (
-          <div className="bg-amber-50 rounded-xl p-4 mb-6 text-left">
-            <div className="text-sm font-medium text-amber-700 mb-2">📋 已加入生词本的单词：</div>
+          <div className="bg-amber-50 dark:bg-amber-900/20 rounded-xl p-4 mb-6 text-left">
+            <div className="text-sm font-medium text-amber-700 dark:text-amber-400 mb-2">📋 已加入生词本的单词：</div>
             <div className="flex flex-wrap gap-2">
               {wrongWords.map(w => (
-                <span key={w} className="px-2 py-1 bg-white rounded-lg text-sm text-amber-700 border border-amber-200">{w}</span>
+                <span key={w} className="px-2 py-1 bg-white dark:bg-slate-800 rounded-lg text-sm text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-700">{w}</span>
               ))}
             </div>
           </div>
@@ -222,7 +248,7 @@ export default function Practice() {
               setQuestions([])
               setShowResult(false)
             }}
-            className="px-6 py-2.5 bg-white border-2 border-gray-200 text-gray-600 font-medium rounded-xl hover:border-gray-300 transition-colors"
+            className="px-6 py-2.5 bg-white dark:bg-slate-700 border-2 border-gray-200 dark:border-slate-600 text-gray-600 dark:text-gray-200 font-medium rounded-xl hover:border-gray-300 transition-colors"
           >
             换种练习
           </button>
@@ -247,9 +273,9 @@ export default function Practice() {
     if (isCorrect) {
       setCorrectCount(c => c + 1)
     } else {
-      const word = current.word
-      setWrongWords(prev => [...prev, word])
-      if (!hasWord(word) && unit) {
+      setWrongWords(prev => [...prev, current.word])
+      loseHeart()
+      if (!hasWord(current.word) && unit) {
         addWord({
           word: current.word,
           meaning: current.meaning,
@@ -270,7 +296,6 @@ export default function Practice() {
       setSelectedAnswer(null)
       setSpellingInput('')
     } else {
-      // 练习完成
       recordPractice({
         unitId: unit.id,
         type: selectedType,
@@ -278,8 +303,19 @@ export default function Practice() {
         correct: correctCount,
         wrongWords,
       })
-      markUnitCompleted(unit.id)
+      markUnitCompleted(unit.id, unit.words.length)
+      const accuracy = questions.length > 0 ? Math.round((correctCount / questions.length) * 100) : 0
+      if (accuracy >= 80) addGems(5)
       setShowResult(true)
+    }
+  }
+
+  const handlePrev = () => {
+    if (currentIdx > 0) {
+      setCurrentIdx(i => i - 1)
+      setFeedback(null)
+      setSelectedAnswer(null)
+      setSpellingInput('')
     }
   }
 
@@ -294,6 +330,7 @@ export default function Practice() {
       setCorrectCount(c => c + 1)
     } else {
       setWrongWords(prev => [...prev, current.word])
+      loseHeart()
       if (!hasWord(current.word) && unit) {
         addWord({
           word: current.word,
@@ -311,22 +348,38 @@ export default function Practice() {
   // ====== 答题页 ======
   return (
     <div className="max-w-2xl mx-auto">
+      {/* Header with back button + hearts */}
+      <div className="flex items-center justify-between mb-4">
+        <Link
+          to={`/learn/${unit.id}`}
+          className="text-sm text-gray-500 dark:text-gray-400 hover:text-primary-dark flex items-center gap-1"
+        >
+          ← 退出练习
+        </Link>
+        <div className="flex items-center gap-1 text-lg">
+          {Array.from({ length: hearts }).map((_, i) => (
+            <span key={i}>❤️</span>
+          ))}
+        </div>
+      </div>
+
       {/* Progress bar */}
       <div className="mb-4">
-        <div className="flex items-center justify-between text-sm text-gray-500 mb-2">
+        <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400 mb-2">
           <span>{cfg.icon} {cfg.label}</span>
           <span>{currentIdx + 1} / {questions.length}</span>
         </div>
-        <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+        <div className="h-2 bg-gray-200 dark:bg-slate-700 rounded-full overflow-hidden">
           <div className="h-full bg-primary transition-all duration-300" style={{ width: `${((currentIdx) / questions.length) * 100}%` }} />
         </div>
       </div>
 
       {/* Question card */}
-      <div className="bg-white rounded-2xl p-6 sm:p-8 border border-gray-100 shadow-sm">
+      <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 sm:p-8 border border-gray-100 dark:border-slate-700 shadow-sm">
         {/* 词根拆解练习 */}
         {selectedType === 'decompose' && current.options && (
           <DecomposeQuestion
+            key={currentIdx}
             question={current}
             options={current.options}
             feedback={feedback}
@@ -337,15 +390,21 @@ export default function Practice() {
         {/* 单词拼写 */}
         {selectedType === 'spelling' && (
           <div>
-            <div className="bg-primary/5 rounded-xl p-4 mb-4 text-center">
-              <p className="text-sm text-gray-500 mb-1">词根含义提示</p>
-              <p className="text-lg font-mono font-semibold text-primary-dark">
+            <div className="bg-primary/5 dark:bg-primary/10 rounded-xl p-4 mb-4 text-center">
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">词根含义提示</p>
+              <p className="text-lg font-mono font-semibold text-primary-dark dark:text-primary-light">
                 {current.parts.map(p => `${p.form}（${p.meaning}）`).join(' + ')}
               </p>
             </div>
             <div className="text-center mb-6">
-              <p className="text-2xl font-bold text-gray-900 mb-2">{current.meaning}</p>
-              <p className="text-sm text-gray-400">请拼写对应的英文单词</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">{current.meaning}</p>
+              <button
+                onClick={() => speak(current.word)}
+                className="text-sm text-primary hover:text-primary-dark"
+              >
+                🔊 听发音
+              </button>
+              <p className="text-sm text-gray-400 mt-2">请拼写对应的英文单词</p>
             </div>
             <input
               type="text"
@@ -358,7 +417,7 @@ export default function Practice() {
                   ? 'border-green-400 bg-green-50 text-green-700'
                   : feedback === 'wrong'
                   ? 'border-red-400 bg-red-50 text-red-700 animate-shake'
-                  : 'border-gray-200 focus:border-primary'
+                  : 'border-gray-200 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 focus:border-primary'
               }`}
               placeholder="输入单词..."
               autoFocus
@@ -382,12 +441,14 @@ export default function Practice() {
         {selectedType === 'choice' && current.options && (
           <div>
             <div className="text-center mb-6">
-              <p className="text-2xl font-bold text-gray-900 mb-1">{current.word}</p>
+              <button onClick={() => speak(current.word)} className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-1 hover:text-primary transition-colors">
+                {current.word} 🔊
+              </button>
               <p className="text-sm text-gray-400 font-mono">{current.phonetic}</p>
               <p className="text-xs text-gray-400 mt-2">
                 词根：{current.parts.map(p => `${p.form}（${p.meaning}）`).join(' + ')}
               </p>
-              <p className="text-sm text-gray-500 mt-3">这个单词是什么意思？</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-3">这个单词是什么意思？</p>
             </div>
             <div className="space-y-2">
               {current.options.map((opt, i) => (
@@ -402,7 +463,7 @@ export default function Practice() {
                         : 'border-red-400 bg-red-50 text-red-700'
                       : feedback && opt === current.answer
                       ? 'border-green-400 bg-green-50 text-green-700'
-                      : 'border-gray-200 hover:border-primary/30 hover:bg-primary/5'
+                      : 'border-gray-200 dark:border-slate-600 hover:border-primary/30 hover:bg-primary/5 dark:text-gray-200'
                   }`}
                 >
                   {opt}
@@ -415,11 +476,11 @@ export default function Practice() {
         {/* 例句填空 */}
         {selectedType === 'fillblank' && current.blankedSentence && current.options && (
           <div>
-            <div className="bg-gray-50 rounded-xl p-4 mb-6">
-              <p className="text-lg text-gray-800 leading-relaxed">{current.blankedSentence}</p>
+            <div className="bg-gray-50 dark:bg-slate-700 rounded-xl p-4 mb-6">
+              <p className="text-lg text-gray-800 dark:text-gray-200 leading-relaxed">{current.blankedSentence}</p>
               <p className="text-sm text-gray-400 mt-2">{current.exampleTranslation}</p>
             </div>
-            <p className="text-sm text-gray-500 mb-3">选择正确的单词填空：</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">选择正确的单词填空：</p>
             <div className="grid grid-cols-2 gap-2">
               {current.options.map((opt, i) => (
                 <button
@@ -433,7 +494,7 @@ export default function Practice() {
                         : 'border-red-400 bg-red-50 text-red-700'
                       : feedback && opt === current.answer
                       ? 'border-green-400 bg-green-50 text-green-700'
-                      : 'border-gray-200 hover:border-primary/30 hover:bg-primary/5'
+                      : 'border-gray-200 dark:border-slate-600 hover:border-primary/30 hover:bg-primary/5 dark:text-gray-200'
                   }`}
                 >
                   {opt}
@@ -444,19 +505,29 @@ export default function Practice() {
         )}
       </div>
 
-      {/* Feedback + Next button */}
+      {/* Feedback + Prev/Next buttons */}
       {feedback && (
         <div className="mt-4 flex items-center justify-between animate-fadeIn">
           <div className={`flex items-center gap-2 font-semibold ${feedback === 'correct' ? 'text-green-600' : 'text-red-500'}`}>
             <span className="text-2xl">{feedback === 'correct' ? '✅' : '❌'}</span>
-            <span>{feedback === 'correct' ? '回答正确！' : '回答错误'}</span>
+            <span>{feedback === 'correct' ? '回答正确！' : '回答错误（-1❤️）'}</span>
           </div>
-          <button
-            onClick={handleNext}
-            className="px-6 py-2.5 bg-primary text-white font-semibold rounded-xl hover:bg-primary-dark transition-colors"
-          >
-            {currentIdx < questions.length - 1 ? '下一题 →' : '查看结果'}
-          </button>
+          <div className="flex gap-2">
+            {currentIdx > 0 && (
+              <button
+                onClick={handlePrev}
+                className="px-4 py-2.5 bg-white dark:bg-slate-700 border-2 border-gray-200 dark:border-slate-600 text-gray-600 dark:text-gray-200 font-semibold rounded-xl hover:border-gray-300 transition-colors"
+              >
+                ← 上一题
+              </button>
+            )}
+            <button
+              onClick={handleNext}
+              className="px-6 py-2.5 bg-primary text-white font-semibold rounded-xl hover:bg-primary-dark transition-colors"
+            >
+              {currentIdx < questions.length - 1 ? '下一题 →' : '查看结果'}
+            </button>
+          </div>
         </div>
       )}
     </div>
@@ -494,12 +565,11 @@ function DecomposeQuestion({
     onAnswer(selected.sort().join(' + ') === [...correctParts].sort().join(' + ') ? answer : '__wrong__')
   }
 
-  // Show feedback state for options
   const getOptionClass = (opt: string) => {
     if (!feedback) {
       return selected.includes(opt)
-        ? 'border-primary bg-primary/10 text-primary-dark'
-        : 'border-gray-200 hover:border-primary/30 hover:bg-primary/5'
+        ? 'border-primary bg-primary/10 text-primary-dark dark:text-primary-light'
+        : 'border-gray-200 dark:border-slate-600 hover:border-primary/30 hover:bg-primary/5 dark:text-gray-200'
     }
     if (correctParts.includes(opt)) {
       return 'border-green-400 bg-green-50 text-green-700'
@@ -507,15 +577,17 @@ function DecomposeQuestion({
     if (selected.includes(opt)) {
       return 'border-red-400 bg-red-50 text-red-700'
     }
-    return 'border-gray-200 opacity-50'
+    return 'border-gray-200 dark:border-slate-600 opacity-50'
   }
 
   return (
     <div>
       <div className="text-center mb-6">
-        <p className="text-2xl font-bold text-gray-900 font-mono mb-1">{question.word}</p>
+        <button onClick={() => speak(question.word)} className="text-2xl font-bold text-gray-900 dark:text-gray-100 font-mono mb-1 hover:text-primary transition-colors">
+          {question.word} 🔊
+        </button>
         <p className="text-sm text-gray-400 font-mono">{question.phonetic}</p>
-        <p className="text-sm text-gray-600 mt-2">{question.meaning}</p>
+        <p className="text-sm text-gray-600 dark:text-gray-300 mt-2">{question.meaning}</p>
         <p className="text-xs text-gray-400 mt-2">选择组成这个单词的词根/词缀：</p>
       </div>
 
@@ -533,16 +605,16 @@ function DecomposeQuestion({
       </div>
 
       {selected.length > 0 && !feedback && (
-        <div className="bg-gray-50 rounded-lg p-3 mb-4">
+        <div className="bg-gray-50 dark:bg-slate-700 rounded-lg p-3 mb-4">
           <span className="text-xs text-gray-400">已选：</span>
-          <span className="font-mono text-sm text-gray-700">{selected.join(' + ')}</span>
+          <span className="font-mono text-sm text-gray-700 dark:text-gray-200">{selected.join(' + ')}</span>
         </div>
       )}
 
       {feedback === 'wrong' && (
-        <div className="bg-green-50 rounded-lg p-3 mb-4">
-          <span className="text-xs text-green-600">正确答案：</span>
-          <span className="font-mono text-sm text-green-700">{correctParts.join(' + ')}</span>
+        <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-3 mb-4">
+          <span className="text-xs text-green-600 dark:text-green-400">正确答案：</span>
+          <span className="font-mono text-sm text-green-700 dark:text-green-300">{correctParts.join(' + ')}</span>
         </div>
       )}
 

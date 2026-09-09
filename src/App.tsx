@@ -10,11 +10,14 @@ import Practice from './pages/Practice'
 import WordBook from './pages/WordBook'
 import ProgressPage from './pages/Progress'
 import Achievements from './pages/Achievements'
+import Review from './pages/Review'
+import Leaderboard from './pages/Leaderboard'
 
 function App() {
+  const basename = import.meta.env.VITE_BASE_PATH || '/'
   return (
-    <BrowserRouter>
-      <div className="min-h-screen bg-gray-50">
+    <BrowserRouter basename={basename}>
+      <div className="min-h-screen bg-gray-50 dark:bg-slate-900 transition-colors">
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
@@ -25,6 +28,8 @@ function App() {
           <Route path="/wordbook" element={<Layout><WordBook /></Layout>} />
           <Route path="/progress" element={<Layout><ProgressPage /></Layout>} />
           <Route path="/achievements" element={<Layout><Achievements /></Layout>} />
+          <Route path="/review" element={<Layout><Review /></Layout>} />
+          <Route path="/leaderboard" element={<Layout><Leaderboard /></Layout>} />
         </Routes>
       </div>
     </BrowserRouter>

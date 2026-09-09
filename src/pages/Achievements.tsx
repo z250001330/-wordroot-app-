@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { allUnits } from '../data/courseData'
 import { useProgressStore } from '../store/progressStore'
+import { useWordBookStore } from '../store/wordBookStore'
 import { achievements, calcLevel, calcExp, expForLevel } from '../data/achievements'
 import type { Achievement } from '../types'
 
@@ -9,10 +10,14 @@ const categoryConfig: Record<string, { label: string; color: string }> = {
   streak: { label: '连续打卡', color: 'text-orange-500' },
   practice: { label: '练习成就', color: 'text-blue-600' },
   level: { label: '等级成就', color: 'text-purple-600' },
+  social: { label: '社交成就', color: 'text-pink-600' },
+  special: { label: '特殊成就', color: 'text-amber-600' },
 }
 
 export default function Achievements() {
-  const { unitStatuses, practiceCount, practiceResults } = useProgressStore()
+  const { unitStatuses, practiceCount, practiceResults, gems, totalReviews } = useProgressStore()
+  const wordBookEntries = useWordBookStore(s => s.entries)
+  const masteryRate = useWordBookStore(s => s.getMasteryRate())
 
   // 计算统计数据
   const completedUnitIds = Object.entries(unitStatuses)
@@ -40,6 +45,10 @@ export default function Achievements() {
       case 'practices': return practiceCount
       case 'perfect': return perfectCount
       case 'level': return level
+      case 'reviews': return totalReviews
+      case 'gems': return gems
+      case 'mastery': return masteryRate
+      case 'wordbook': return wordBookEntries.length
       default: return 0
     }
   }
@@ -114,31 +123,34 @@ export default function Achievements() {
                     key={a.id}
                     className={`rounded-2xl p-5 border-2 transition-all ${
                       unlocked
-                        ? 'bg-gradient-to-br from-amber-50 to-yellow-50 border-amber-200'
-                        : 'bg-gray-50 border-gray-100'
+                        ? 'bg-gradient-to-br from-amber-50 to-yellow-50 dark:from-amber-900/20 dark:to-yellow-900/10 border-amber-200 dark:border-amber-700'
+                        : 'bg-gray-50 dark:bg-slate-800 border-gray-100 dark:border-slate-700'
                     }`}
                   >
                     <div className="flex items-start gap-3">
-                      <div className={`text-3xl ${unlocked ? '' : 'grayscale opacity-40'}`}>
+                      <div className={`text-3xl ${unlocked ? 'animate-pop' : 'grayscale opacity-40'}`}>
                         {a.icon}
                       </div>
                       <div className="flex-1">
-                        <h3 className={`text-sm font-bold ${unlocked ? 'text-gray-900' : 'text-gray-500'}`}>
+                        <h3 className={`text-sm font-bold ${unlocked ? 'text-gray-900 dark:text-gray-100' : 'text-gray-500 dark:text-gray-400'}`}>
                           {a.title}
                         </h3>
-                        <p className={`text-xs mt-0.5 ${unlocked ? 'text-gray-600' : 'text-gray-400'}`}>
+                        <p className={`text-xs mt-0.5 ${unlocked ? 'text-gray-600 dark:text-gray-300' : 'text-gray-400'}`}>
                           {a.description}
                         </p>
+                        {a.reward && a.reward > 0 && (
+                          <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">奖励：{a.reward} 💎</p>
+                        )}
                       </div>
                       {unlocked && (
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-amber-200 text-amber-800 font-medium">
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-amber-200 dark:bg-amber-800 text-amber-800 dark:text-amber-200 font-medium">
                           已解锁
                         </span>
                       )}
                     </div>
                     {!unlocked && (
                       <div className="mt-3">
-                        <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                        <div className="h-1.5 bg-gray-200 dark:bg-slate-700 rounded-full overflow-hidden">
                           <div className="h-full bg-amber-400 transition-all duration-500" style={{ width: `${progress}%` }} />
                         </div>
                         <div className="text-xs text-gray-400 mt-1 text-right">

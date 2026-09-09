@@ -1,4 +1,4 @@
-import type { CourseLevel, LearningUnit } from '../types'
+import type { CourseLevel, LearningUnit, ExamTag } from '../types'
 
 // 英语词根学习预置数据
 // 数据参照《英语词汇的奥秘》（蒋争著）的逻辑，将英语单词拆解为前缀 + 词根 + 后缀
@@ -5001,6 +5001,172 @@ export const courseLevels: CourseLevel[] = [
     ],
   },
 ]
+
+// 根据级别自动分配考试标签
+const levelExamTags: Record<string, ExamTag[]> = {
+  beginner: ['cet4', 'daily'],
+  intermediate: ['cet6', 'kaoyan'],
+  advanced: ['ielts', 'toefl', 'gre'],
+}
+
+// 为单元添加考试标签
+courseLevels.forEach(level => {
+  level.units.forEach(unit => {
+    if (!unit.examTags) {
+      unit.examTags = levelExamTags[level.level] || ['daily']
+    }
+  })
+})
+
+// 为常见单词添加助记
+const mnemonicMap: Record<string, string> = {
+  inspect: 'in(进入)+spect(看)→进去看→检查',
+  respect: 're(回)+spect(看)→回头看→尊重',
+  expect: 'ex(外)+spect(看)→向外看→期待',
+  suspect: 'sus(下)+spect(看)→在下面偷偷看→怀疑',
+  prospect: 'pro(前)+spect(看)→向前看→前景',
+  transport: 'trans(穿过)+port(运)→穿过运送→运输',
+  export: 'ex(出)+port(运)→运出去→出口',
+  import: 'im(进)+port(运)→运进来→进口',
+  portable: 'port(运)+able(能…的)→能运送的→便携的',
+  report: 're(回)+port(运)→把消息运回→报告',
+  dictation: 'dict(说)+ation(名词)→说出来的话→听写',
+  predict: 'pre(前)+dict(说)→提前说→预言',
+  dictionary: 'dict(说)+ion+ary(物)→说话的书→词典',
+  contradict: 'contra(反)+dict(说)→反着说→反驳',
+  visible: 'vis(看)+ible(能…的)→能看见的',
+  vision: 'vis(看)+ion(名词)→视力；愿景',
+  visit: 'vis(看)+it→去看→参观',
+  television: 'tele(远)+vis(看)+ion→远距离看→电视',
+  revise: 're(再)+vis(看)+e→再看一遍→修订',
+  biology: 'bio(生命)+logy(学科)→生物学',
+  biography: 'bio(生命)+graph(写)+y→写生命→传记',
+  geology: 'geo(地)+logy(学科)→地质学',
+  psychology: 'psych(心理)+ology(学科)→心理学',
+  technology: 'techn(技术)+ology(学科)→技术学',
+  telephone: 'tele(远)+phone(声音)→远处的声音→电话',
+  microphone: 'micro(小)+phone(声音)→把小声音放大→麦克风',
+  phonetics: 'phon(声音)+etics(学科)→语音学',
+  symphony: 'sym(同)+phon(声音)+y→同声→交响乐',
+  autograph: 'auto(自己)+graph(写)→自己写的字→亲笔签名',
+  photograph: 'photo(光)+graph(写)→用光写→照片',
+  geography: 'geo(地)+graph(写)+y→描写大地→地理学',
+  telegraph: 'tele(远)+graph(写)→远处写→电报',
+  autobiography: 'auto(自己)+bio(生命)+graph(写)+y→自己写自己的生平→自传',
+  submarine: 'sub(下)+marine(海的)→海下面的→潜水艇',
+  subway: 'sub(下)+way(路)→地下的路→地铁',
+  subtract: 'sub(下)+tract(拉)→往下拉→减去',
+  transform: 'trans(转)+form(形状)→转变形状→改变',
+  translate: 'trans(转)+late(携带)→转换语言→翻译',
+  international: 'inter(之间)+nation(国家)+al(的)→国家之间的→国际的',
+  internet: 'inter(之间)+net(网)→网之间→互联网',
+  interact: 'inter(之间)+act(行动)→相互行动→互动',
+  preview: 'pre(前)+view(看)→提前看→预览',
+  prevent: 'pre(前)+vent(来)→在前面挡住→阻止',
+  preface: 'pre(前)+face(面)→前面的话→前言',
+  prefix: 'pre(前)+fix(固定)→固定在前面→前缀',
+  review: 're(再)+view(看)→再看→复习',
+  return: 're(回)+turn(转)→转回来→返回',
+  repeat: 're(再)+peat(请求)→再请求→重复',
+  rebuild: 're(再)+build(建)→再建→重建',
+  unhappy: 'un(不)+happy(开心)→不开心',
+  unable: 'un(不)+able(能)→不能',
+  unfair: 'un(不)+fair(公平)→不公平',
+  unusual: 'un(不)+usual(平常)→不平常',
+  disappear: 'dis(不)+appear(出现)→不出现→消失',
+  disagree: 'dis(不)+agree(同意)→不同意',
+  discover: 'dis(去除)+cover(盖子)→去掉盖子→发现',
+  disable: 'dis(不)+able(能)→使不能→使残疾',
+  careful: 'care(小心)+ful(充满)→充满小心→小心的',
+  meaningful: 'meaning(意义)+ful(充满)→有意义的',
+  beautiful: 'beauty(美丽)+ful(充满)→美丽的',
+  helpful: 'help(帮助)+ful(充满)→有帮助的',
+  careless: 'care(小心)+less(无)→不小心→粗心的',
+  hopeless: 'hope(希望)+less(无)→无希望→绝望的',
+  useless: 'use(用)+less(无)→无用的',
+  homeless: 'home(家)+less(无)→无家的',
+  freedom: 'free(自由)+dom(名词)→自由',
+  wisdom: 'wise(明智)+dom(名词)→智慧',
+  kingdom: 'king(国王)+dom(名词)→王国',
+  worker: 'work(工作)+er(人)→工人',
+  teacher: 'teach(教)+er(人)→老师',
+  writer: 'write(写)+er(人)→作家',
+  singer: 'sing(唱)+er(人)→歌手',
+  actor: 'act(演)+or(人)→演员',
+  doctor: 'doct(教)+or(人)→医生',
+  inventor: 'invent(发明)+or(人)→发明家',
+  happiness: 'happy(开心)+ness(名词)→开心',
+  darkness: 'dark(暗)+ness(名词)→黑暗',
+  kindness: 'kind(善良)+ness(名词)→善良',
+  illness: 'ill(病)+ness(名词)→疾病',
+  friendship: 'friend(朋友)+ship(关系)→友谊',
+  leadership: 'leader(领导)+ship(身份)→领导力',
+  membership: 'member(成员)+ship(身份)→会员资格',
+  relationship: 'relation(关系)+ship(状态)→关系',
+  education: 'educate(教育)+ion(名词)→教育',
+  action: 'act(行动)+ion(名词)→行动',
+  nation: 'nat(生)+ion(名词)→出生之地→国家',
+  creation: 'creat(创造)+ion(名词)→创造',
+  develop: 'de(去除)+velop(包裹)→打开包裹→发展',
+  defend: 'de(去除)+fend(击)→去除打击→防御',
+  delay: 'de(下)+lay(放)→放下→推迟',
+  depend: 'de(下)+pend(挂)→挂在下面→依赖',
+  impossible: 'im(不)+possible(可能)→不可能的',
+  impolite: 'im(不)+polite(礼貌)→不礼貌的',
+  impatient: 'im(不)+patient(耐心)→不耐心的',
+  immature: 'im(不)+mature(成熟)→不成熟的',
+  inactive: 'in(不)+active(活跃)→不活跃的',
+  incorrect: 'in(不)+correct(正确)→不正确的',
+  invisible: 'in(不)+visible(可见)→不可见的',
+  incomplete: 'in(不)+complete(完整)→不完整的',
+  irregular: 'ir(不)+regular(规则)→不规则的',
+  irresponsible: 'ir(不)+responsible(负责)→不负责的',
+  logical: 'log(言语)+ical(…的)→言语的→逻辑的',
+  historical: 'history(历史)+ical(…的)→历史的',
+  musical: 'music(音乐)+al(…的)→音乐的',
+  national: 'nation(国家)+al(…的)→国家的',
+  personal: 'person(人)+al(…的)→个人的',
+  natural: 'nature(自然)+al(…的)→自然的',
+  comfortable: 'comfort(舒适)+able(…的)→舒适的',
+  readable: 'read(读)+able(能…的)→可读的',
+  acceptable: 'accept(接受)+able(能…的)→可接受的',
+  valuable: 'value(价值)+able(…的)→有价值的',
+  simplify: 'simple(简单)+ify(使)→使简单→简化',
+  beautify: 'beauty(美丽)+ify(使)→使美丽→美化',
+  classify: 'class(类别)+ify(使)→分类',
+  identify: 'ident(相同)+ify(使)→使相同→识别',
+  realize: 'real(真实)+ize(使)→使真实→实现',
+  organize: 'organ(组织)+ize(使)→组织',
+  recognize: 're(再)+cogn(知道)+ize(使)→再知道→认出',
+  modernize: 'modern(现代)+ize(使)→使现代化',
+  quicken: 'quick(快)+en(使)→使快→加快',
+  widen: 'wide(宽)+en(使)→使宽→加宽',
+  strengthen: 'strength(力量)+en(使)→加强',
+  lengthen: 'length(长度)+en(使)→加长',
+  reddish: 'red(红)+ish(略…的)→微红的',
+  childish: 'child(孩子)+ish(像…的)→孩子气的',
+  foolish: 'fool(傻瓜)+ish(像…的)→愚蠢的',
+  selfish: 'self(自己)+ish(…的)→自私的',
+  cloudy: 'cloud(云)+y(…的)→多云的',
+  sunny: 'sun(太阳)+y(…的)→晴朗的',
+  rainy: 'rain(雨)+y(…的)→下雨的',
+  noisy: 'noise(噪音)+y(…的)→嘈杂的',
+  dangerous: 'danger(危险)+ous(…的)→危险的',
+  famous: 'fame(名声)+ous(…的)→著名的',
+  nervous: 'nerve(神经)+ous(…的)→神经的→紧张的',
+  poisonous: 'poison(毒)+ous(…的)→有毒的',
+}
+
+// 应用助记
+courseLevels.forEach(level => {
+  level.units.forEach(unit => {
+    unit.words.forEach(w => {
+      if (!w.mnemonic && mnemonicMap[w.word]) {
+        w.mnemonic = mnemonicMap[w.word]
+      }
+    })
+  })
+})
 
 // 所有学习单元的平铺数组
 export const allUnits: LearningUnit[] = courseLevels.flatMap((level) => level.units)
